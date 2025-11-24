@@ -1,4 +1,6 @@
 ﻿using System.Data.Common;
+using Microsoft.EntityFrameworkCore;
+using SQLitePCL;
 using TamburelloDavideMusicManager.Data;
 using TamburelloDavideMusicManager.Model;
 
@@ -6,11 +8,100 @@ internal class Program
 {
     private static void Main(string[] args)
     {
-        using(var db = new MusicContext())
-        {
-            //PopulateDb(db);
-            
-        }
+        using var db = new MusicContext();
+        //PopulateDb(db);
+        //Q1();
+        //Q2();
+        //Q3();
+        //Q4();
+    }
+    static void Q1()
+    {
+        using var db = new MusicContext();
+        /*
+            Q1: Creare un metodo che riceve in input un punteggio minimo (es. 80) e stampa l'elenco delle
+            Esibizioni di successo. Per ogni esibizione stampare: Nome d'Arte del cantante, Nome del Festival e
+            Voti ottenuti, filtrando solo chi ha superato la soglia inserita.
+        */
+        Console.WriteLine("inserisci il voto minimo");
+        int votoMinimo = int.Parse(Console.ReadLine());
+        db.Esibizioni
+            .Where(e => e.VotiGiuria >= votoMinimo)
+            .Include(e => e.Cantante)
+            .Include(e => e.Festival)
+            .ToList()
+            .ForEach(e => Console.WriteLine($"{e.Cantante.NomeArte}, {e.Festival.Nome}, {e.VotiGiuria}"));
+
+    }
+    static void Q2()
+    {
+        using var db = new MusicContext();
+        /*
+            Q2: Creare un metodo che riceve in input il nome di un'Etichetta e stampa l'elenco dei Festival 
+            in cui ha partecipato almeno un cantante di quell'etichetta (evitare duplicati nei nomi dei festival)
+        */
+        Console.WriteLine("inserisci il nome dell'etichetta");
+        string? nomeEtichetta = Console.ReadLine();
+        db.Esibizioni
+            .Include(e => e.Cantante)
+            .Include(e => e.Festival)
+            .Where(e => e.Cantante.Etichetta.Nome == nomeEtichetta)
+            .Select(e => new{e.Festival.Nome})
+            .Distinct()
+            .ToList()
+            .ForEach(f => Console.WriteLine(f.Nome));
+    }
+
+    static void Q3()
+    {
+        using var db = new MusicContext();
+        /*
+            Q3: Trovare e stampare i nomi dei cantanti (e il relativo Festival) che hanno avuto 
+            l'onere di aprire il festival (ovvero quelli con OrdineUscita uguale a 1)
+        */
+        db.Esibizioni
+            .Include(e => e.Cantante)
+            .Include(e => e.Festival)
+            .Where(e => e.OrdineUscita == 1)
+            .ToList()
+            .ForEach(e => Console.WriteLine($"{e.Festival.Nome}, {e.Cantante.NomeArte}"));
+    }
+
+    static void Q4()
+    {
+        using var db = new MusicContext();
+        /*
+            Q4: Stampare la classifica dei cantanti basata sulla media voti. 
+            Per ogni cantante mostrare il Nome d'Arte e la media aritmetica dei voti 
+            presi in tutte le sue esibizioni, 
+            ordinando dal più bravo (media più alta) al meno bravo.
+        */
+        db.Cantanti
+            .Select(c => new 
+            {
+                Nome = c.NomeArte,
+                MediaVoti = db.Esibizioni
+                                .Where(e => e.CantanteId == c.Id)
+                                .Average(e => e.VotiGiuria)
+            })
+            .OrderByDescending(c => c.MediaVoti)
+            .ToList()
+            .ForEach(c => Console.WriteLine($"{c.Nome}: {c.MediaVoti}"));
+    }
+
+    static void Q5()
+    {
+        using var db = new MusicContext();
+        /*
+            Q5: Per ogni Festival presente nel database, stampare il nome del Festival 
+            e il punteggio più alto (Record) registrato in quel festival.
+        */
+        db.Esibizioni
+            .Include(e => e.Festival)
+            .GroupBy(e => e.Festival)
+            .Select(g => new {g.Key.Nome, VotoMax = g.Max(e => e.VotiGiuria)})
+            .ToList()
+            .ForEach(e => Console.WriteLine($"{e.Nome}: {e.VotoMax}"));
     }
 
     static void PopulateDb(MusicContext db)
